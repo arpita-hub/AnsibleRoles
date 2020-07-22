@@ -1,0 +1,57 @@
+---
+# tasks file for jfrog
+
+- name: Update 
+  command: sudo apt-get update
+
+- name: Install_Dependency_Ansible 
+  raw: sudo apt-get install python3 -y
+
+- name: Variable
+  set_fact:
+    latest: 6.17.0
+
+- name: Copy the deb file of Artifactory.
+  template:
+    
+   
+- name: Download zip file of Artifactory.
+  command: "wget --output-document=artifactory.zip http://bit.ly/Hqv9aj"
+  args:
+    chdir: /tmp
+
+- name: Install zip 
+  apt:
+    name: zip
+    state: present
+    update_cache: yes
+
+- name: Unarchive the zip file.
+  unarchive:
+    src: /tmp/artifactory.zip
+    dest: /opt
+    remote_src: yes
+
+- name: Daemon reload
+  systemd: 
+    daemon-reload: yes
+
+- name: Start the service.
+  systemd:
+    name: artifactory.service
+    state: started
+
+- name: Check status
+  systemd:
+    name: artifactory.service
+    status: show
+ 
+    #- name: Check the status of Artifactory
+    #command: systemctl status artifactory.service
+
+#    - name: Download JFrog Artifactory zip file
+    #unarchive:
+     # src: " wget --output-document=artifactory-$latest.zip http://bit.ly/Hqv9aj "
+      #dest: /tmp
+      #remote_src: yes
+  

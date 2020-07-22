@@ -1,0 +1,64 @@
+---
+- hosts: all
+  gather_facts: true
+  become: true
+  tasks: 
+
+    - name: Update
+      shell: sudo apt-get update
+
+    - name: Install_Dependency_Ansible 
+      raw: sudo apt-get install python -y
+      
+    - name: Add Group
+      group: 
+        name: node_exporter
+        state: present
+
+    - name: Create user
+      user: 
+        name: node_exporter
+        state: present
+        shell: /bin/false
+        create_home: no
+        groups: node_exporter
+    - name: Variable
+      set_fact:
+        prometheus_node_exporter_version: 0.18.1
+
+    - name: Extract node_exporter
+      unarchive:
+        src: "https://github.com/prometheus/node_exporter/releases/download/v{{ prometheus_node_exporter_version }}/node_exporter-{{ prometheus_node_exporter_version }}.linux-amd64.tar.gz" 
+        dest: /opt
+        remote_src: yes
+
+    - name: Copy node-exporter to /usr/local/bin
+      copy:
+        src: /opt/node_exporter-{{ prometheus_node_exporter_version }}.linux-amd64/node_exporter
+        dest: /usr/local/bin
+        owner: node_exporter
+        group: node_exporter
+        mode: 0766
+        remote_src: yes
+    
+    - name: Create node_exporter.service file
+      copy:
+        src: node_exporter.service.j2
+        dest: /etc/systemd/system/node_exporter.service
+
+    - name: Daemon reload
+      systemd:
+        daemon_reload: yes
+
+    - name: Start the Service
+      service:
+        name: node_exporter 
+        state: started
+    
+    - name: Enable the Service
+      service:
+        name: node_exporter 
+        enabled: yes
+
+    - name: Check status
+      shell: sudo systemctl status node_exporter.service

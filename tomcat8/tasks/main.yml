@@ -1,0 +1,46 @@
+---
+# tasks file for tomcat8
+- name: Update
+  apt:
+    update_cache: yes
+
+- name: Install Java
+  apt: 
+    name: openjdk-8-jdk
+    state: present
+
+- name: Set environment variable of JAVA
+  shell: echo "JAVA_HOME"
+  environment:
+    JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64
+
+
+- name: Install tomcat8
+  unarchive:
+    src: http://mirrors.estointernet.in/apache/tomcat/tomcat-8/v8.5.51/bin/apache-tomcat-8.5.51.tar.gz
+    dest: /opt
+    remote_src: yes
+
+- name: Change Directory
+  command: "chmod +x startup.sh shutdown.sh"
+  args:
+    chdir: /opt/apache-tomcat-8.5.51/bin
+
+- name: Create two symlink
+  file:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    state: link
+  with_items:
+      - { src: '/opt/apache-tomcat-8.5.51/bin/startup.sh', dest: '/usr/local/bin/tomcatup' }
+      - { src: '/opt/apache-tomcat-8.5.51/bin/shutdown.sh', dest: '/usr/local/bin/tomcatdown' }
+
+- name: Run tomcatup
+  command: tomcatup
+  become: yes
+  become_method: su
+  args:
+    chdir: /opt/apache-tomcat-8.5.51/bin
+
+
+  

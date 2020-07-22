@@ -1,0 +1,81 @@
+---
+- hosts: all
+  gather_facts: true
+  become: true
+  tasks:
+    - name: Update
+      command: sudo apt-get update
+
+    - name: Install_Dependency_Ansible 
+      raw: sudo apt-get install python -y
+
+    - name: Install Unzip
+      apt:
+        name: unzip
+        state: present
+    - name: GroupAdd
+      group:
+        name: prometheus
+        state: present
+    - name: Create User Prometheus
+      user:
+        name: prometheus
+        shell: /bin/false
+        groups: prometheus
+        create_home: no                                     
+    - name: Variable
+      set_fact:
+       prometheus_version: 2.15.0
+    - name: prometheus
+      unarchive:
+        src: https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz
+        dest: /opt/      
+        remote_src: yes
+    
+    - name: Create Prometheus Directory
+      file:
+        path: "{{ item.path }}"
+        state: "{{ item.state }}"
+        owner: prometheus
+        group: prometheus
+        mode: "{{ item.mode }}"
+      with_items:
+        - {path: '/etc/prometheus',state: 'directory',mode: '0755'}
+        - {path: '/var/lib/prometheus',state: 'directory',mode: '0755'}
+    
+    - name: Copy Prometheus.yml and service files
+      copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        owner: "{{ item.owner }}"
+        group: "{{ item.group }}"
+        mode: "{{ item.mode }}"
+      with_items:
+        - {src: 'prometheus.yml.j2', dest: '/etc/prometheus/prometheus.yml', owner: 'prometheus', group: 'prometheus', mode: '0644'}
+        - {src: 'prometheus.service.j2', dest: '/etc/systemd/system/prometheus.service', owner: 'prometheus', group: 'prometheus', mode: '0644'}
+  
+    - name: Copy multiple directory
+      copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: "{{ item.mode }}"
+        remote_src: yes
+      with_items:
+        - { src: '/opt/prometheus-{{ prometheus_version }}.linux-amd64/prometheus',dest: '/usr/local/bin',mode: '0755'}
+        - { src: '/opt/prometheus-{{ prometheus_version }}.linux-amd64/promtool',dest: '/usr/local/bin',mode: '0755'}
+        - { src: '/opt/prometheus-{{ prometheus_version }}.linux-amd64/console_libraries',dest: '/etc/prometheus/',mode: '0755'}
+        - {src: '/opt/prometheus-{{ prometheus_version }}.linux-amd64/consoles', dest: '/etc/prometheus/',mode: '0755'}
+    
+    - name: Daemon reload
+      systemd: 
+        daemon_reload: yes
+    - name: Start the Service
+      service:
+        name: prometheus 
+        state: started
+    - name: Enable the Service
+      service:
+        name: prometheus 
+        enabled: yes
+    - name: Check Status
+      command: sudo systemctl status prometheus.service
